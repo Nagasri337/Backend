@@ -1,0 +1,156 @@
+//Frontend Setup
+npx create-react-app frontend
+cd frontend
+npm install react-router-dom
+
+//Tailwind Setup
+npm install -D tailwindcss postcss autoprefixer
+npx tailwindcss init -p
+
+//Add to tailwind.config.js
+module.exports = {
+  content: ["./src/**/*.{js,jsx}"],
+  theme: { extend: {} },
+  plugins: [],
+};
+
+//Add to index.css
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+//Frontend Structure
+frontend/src/
+│── App.js
+│── index.js
+│── components/
+│      ├── Sidebar.js
+│      ├── ChatWindow.js
+│      ├── ChatInput.js
+│      ├── TableResponse.js
+│      ├── ThemeToggle.js
+│      └── AnswerFeedback.js
+
+//React Router (App.js)
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Sidebar from "./components/Sidebar";
+import ChatWindow from "./components/ChatWindow";
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <div className="flex">
+        <Sidebar />
+
+        <Routes>
+          <Route path="/" element={<div className="p-4">Start a New Chat</div>} />
+          <Route path="/chat/:sessionId" element={<ChatWindow />} />
+        </Routes>
+      </div>
+    </BrowserRouter>
+  );
+}
+//Sidebar.js
+import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
+export default function Sidebar() {
+  const [sessions, setSessions] = useState([]);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    fetch("http://localhost:5000/api/sessions")
+      .then(res => res.json())
+      .then(data => setSessions(data));
+  }, []);
+
+  const createChat = async () => {
+    const res = await fetch("http://localhost:5000/api/new-chat");
+    const data = await res.json();
+    navigate(`/chat/${data.sessionId}`);
+  };
+
+  return (
+    <div className="w-64 bg-gray-200 p-4 min-h-screen">
+      <button onClick={createChat} className="mb-4 bg-blue-500 text-white px-4 py-2 rounded">
+        New Chat
+      </button>
+
+      {sessions.map(s => (
+        <div 
+          key={s.id} 
+          onClick={() => navigate(`/chat/${s.id}`)}
+          className="p-2 cursor-pointer hover:bg-gray-300 rounded"
+        >
+          {s.title}
+        </div>
+      ))}
+    </div>
+  );
+}
+//ChatWindow.js
+import { useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import TableResponse from "./TableResponse";
+import ChatInput from "./ChatInput";
+
+export default function ChatWindow() {
+  const { sessionId } = useParams();
+  const [messages, setMessages] = useState([]);
+
+  useEffect(() => {
+    fetch(`http://localhost:5000/api/session/${sessionId}`)
+      .then(res => res.json())
+      .then(data => setMessages(data));
+  }, [sessionId]);
+
+  const sendMessage = async (question) => {
+    const res = await fetch(`http://localhost:5000/api/chat/${sessionId}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ question }),
+    });
+
+    const ans = await res.json();
+    setMessages(prev => [...prev, { role: "user", text: question }, ans]);
+  };
+
+  return (
+    <div className="flex-1 p-4">
+      {messages.map((m, i) => (
+        <div key={i}>
+          <p className={m.role === "user" ? "text-blue-600" : "text-green-600"}>
+            {m.text}
+          </p>
+          {m.table && <TableResponse data={m.table} />}
+        </div>
+      ))}
+
+      <ChatInput sendMessage={sendMessage} />
+    </div>
+  );
+}
+//TableResponse.js
+export default function TableResponse({ data }) {
+  return (
+    <table className="border mt-2">
+      <thead>
+        <tr>
+          {Object.keys(data[0]).map((key) => (
+            <th className="border px-2 py-1">{key}</th>
+          ))}
+        </tr>
+      </thead>
+
+      <tbody>
+        {data.map((row, i) => (
+          <tr key={i}>
+            {Object.values(row).map((val, j) => (
+              <td className="border px-2 py-1">{val}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+}
