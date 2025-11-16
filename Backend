@@ -1,0 +1,92 @@
+//Backend
+//Initialize Project
+mkdir backend
+cd backend
+npm init -y
+npm install express cors
+
+//server.js
+
+// server.js
+
+const express = require("express");
+const cors = require("cors");
+const app = express();
+const PORT = 5000;
+
+const { sessions, conversations } = require("./mockData");
+
+app.use(cors());
+app.use(express.json());
+
+// 1. Get all sessions
+app.get("/api/sessions", (req, res) => {
+  res.json(sessions);
+});
+
+// 2. Create new session
+app.get("/api/new-chat", (req, res) => {
+  const newId = "sess" + (sessions.length + 1);
+  sessions.push({ id: newId, title: "New Chat " + sessions.length });
+
+  conversations[newId] = [];
+
+  res.json({ sessionId: newId });
+});
+
+// 3. Get specific session history
+app.get("/api/session/:id", (req, res) => {
+  const id = req.params.id;
+  res.json(conversations[id] || []);
+});
+
+// 4. Chat response (mock)
+app.post("/api/chat/:id", (req, res) => {
+  const id = req.params.id;
+  const { question } = req.body;
+
+  const mockResponse = {
+    role: "bot",
+    text: "Here is your structured response:",
+    table: [
+      { item: "A", value: 10 },
+      { item: "B", value: 20 },
+    ],
+  };
+
+  conversations[id].push({ role: "user", text: question });
+  conversations[id].push(mockResponse);
+
+  res.json(mockResponse);
+});
+
+app.listen(PORT, () => console.log(`Server running on ${PORT}`));
+
+//mockData.js
+
+// mockData.js
+
+const sessions = [
+  { id: "sess1", title: "Marketing Strategy" },
+  { id: "sess2", title: "Sales Report Chat" },
+];
+
+const conversations = {
+  sess1: [
+    { role: "user", text: "Explain marketing funnel." },
+    { role: "bot", text: "Here is a simple funnel explanation." }
+  ],
+  sess2: [
+    { role: "user", text: "Show me sales data." },
+    { 
+      role: "bot", 
+      text: "Here is your table data:",
+      table: [
+        { month: "Jan", sales: 1200 },
+        { month: "Feb", sales: 1500 },
+      ]
+    }
+  ],
+};
+
+module.exports = { sessions, conversations 
